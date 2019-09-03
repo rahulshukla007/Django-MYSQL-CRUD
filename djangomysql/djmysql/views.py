@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from .models import Employees
 # Create your views here.
+from django.contrib import auth
 
 def home(request):
     if request.method == "POST":
@@ -26,14 +27,19 @@ def home(request):
 
 #Getting data from database & showing in table
 def show(request):
-    employeedata = Employees.objects.all()
-    return render(request, 'djmysql/show.html',{'employeedata':employeedata})
+    if request.session.has_key('user'):
+        employeedata = Employees.objects.all()
+        return render(request, 'djmysql/show.html',{'employeedata':employeedata})
+    else:
+        return render(request, 'djmysql/adminlogin.html')
 
 #Getting edit request with id
 def edit(request,id):
-    print(id)                  #model_id = get_id
-    edit_emp = Employees.objects.get(id=id)
-    return render(request, 'djmysql/edit.html',{"edit_emp": edit_emp})
+    if request.session.has_key('user'):
+        edit_emp = Employees.objects.get(id=id)
+        return render(request, 'djmysql/edit.html',{"edit_emp": edit_emp})
+    else:
+        return render(request, 'djmysql/adminlogin.html')
 
 def update(request,id):
     #Opening Existing Employees object with the help of id
@@ -58,3 +64,27 @@ def delete(request,id):
     #Deleting data into database
     delete_emp.delete()
     return redirect('/show')
+
+
+#Admin login page
+def adminLogin(request):
+    if request.method == "POST":
+        username = request.POST.get('uname')
+        password = request.POST.get('psw')
+        user = auth.authenticate(username=username, password=password)
+        try:
+            if user.is_superuser:
+                request.session['user'] = user.username
+                return redirect('/show')
+        except Exception as e:
+            print(e)
+            return render(request, 'djmysql/adminlogin.html')
+    else:
+        return render(request, 'djmysql/adminlogin.html')
+
+def logOut(request):
+    try:
+        request.session.flush()
+    except Exception as e:
+        print(e)
+    return render(request,'djmysql/adminlogin.html')
